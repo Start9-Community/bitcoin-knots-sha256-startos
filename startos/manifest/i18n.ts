@@ -12,13 +12,13 @@ const longEn =
 export const short = {
   en_US: shortEn,
   es_ES:
-    'Bitcoin Knots para la cadena SHA256: un nodo completo de Bitcoin con los controles de política de Knots, con un consenso idéntico al de Bitcoin Core',
+    'Bitcoin Knots en la cadena SHA256: nodo completo con la política de Knots y el mismo consenso que Bitcoin Core',
   de_DE:
-    'Bitcoin Knots für die SHA256-Chain: ein Bitcoin-Full-Node mit den Richtlinien-Einstellungen von Knots, im Konsens identisch mit Bitcoin Core',
+    'Bitcoin Knots für die SHA256-Chain: Full Node mit den Richtlinien von Knots, im Konsens identisch mit Bitcoin Core',
   pl_PL:
-    'Bitcoin Knots dla łańcucha SHA256: pełny węzeł Bitcoin z ustawieniami zasad Knots, o konsensusie identycznym z Bitcoin Core',
+    'Bitcoin Knots dla łańcucha SHA256: pełny węzeł z zasadami Knots i konsensusem identycznym z Bitcoin Core',
   fr_FR:
-    'Bitcoin Knots pour la chaîne SHA256 : un nœud Bitcoin complet avec les réglages de politique de Knots, au consensus identique à celui de Bitcoin Core',
+    'Bitcoin Knots pour la chaîne SHA256 : nœud complet avec la politique de Knots, au consensus identique à Bitcoin Core',
 }
 
 export const long = {
