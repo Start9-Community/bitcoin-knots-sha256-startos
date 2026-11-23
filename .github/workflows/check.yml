@@ -1,7 +1,8 @@
 name: check
-# Type-check and unit tests only. Releases are not built here: the workspace
-# release.sh builds the s9pk, SHA256SUMS is signed on an air-gapped machine,
-# and `release.sh --publish` cuts the GitHub Release (see UPDATING.md).
+# Type-check, unit tests and the pinned release-key check, on every push and PR.
+# Packaging and publishing are build.yml / tagAndRelease.yml / release.yml (the
+# Start9 Community pipeline); the Knots SHA256 binaries themselves are built and
+# signed upstream, and the Dockerfile verifies that signature.
 on: [push, pull_request]
 permissions:
   contents: read
