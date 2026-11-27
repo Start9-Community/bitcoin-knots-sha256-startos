@@ -12,6 +12,7 @@ import { sdk } from './sdk'
 import {
   bitcoinCliArgs,
   bitcoinMounts,
+  cleanChainstateOldCommand,
   ChainTip,
   GetChainstates,
   GetBlockchainInfo,
@@ -282,13 +283,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     })
     .addOneshot('clean-chainstate-old', {
       subcontainer: bitcoindSub,
-      exec: {
-        command: [
-          'sh',
-          '-c',
-          `rm -rf ${rootDir}/chainstate.old ${rootDir}/*/chainstate.old`,
-        ],
-      },
+      exec: { command: cleanChainstateOldCommand },
       requires: [],
     })
 

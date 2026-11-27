@@ -309,9 +309,11 @@ The empty-network-database case is usually not an I2P fault. Reseeding resolves 
 
 `main` and `i2pd` are copied wholesale; `public` holds only copies regenerated on every start and is not backed up. There is no dump step and no database engine involved. What makes the backup small is the exclude list, and what it excludes is everything the node can rebuild for itself.
 
-- **Excluded from `main`:** `blocks/`, `chainstate/`, `chainstate.old/`, `indexes/`, and the RPC `.cookie` (regenerated every start). That is the entire chain, so a backup is megabytes rather than hundreds of gigabytes.
-- **Excluded from `i2pd`:** the router's `netDb/`, `peerProfiles/`, `addressbook/`, `tags/`, `certificates/`, and pidfile — all re-derived by reseeding. A restore deletes whatever else is in the volume first. `router.info` is derived too but is kept: restoring `router.keys` without it lands i2pd on a "malformed, creating new" path that emits one `Identity` parse error per netDb entry before it recovers.
+- **Excluded from `main`:** `blocks/`, `chainstate/`, `indexes/`, and the RPC `.cookie` (regenerated every start). That is the entire chain, so a backup is megabytes rather than hundreds of gigabytes.
+- **Excluded from `i2pd`:** the router's `netDb/`, `peerProfiles/`, `addressbook/`, `tags/`, `certificates/`, and pidfile — all re-derived by reseeding. Excluded paths already present on a restore destination are retained. `router.info` is derived too but is kept: restoring `router.keys` without it lands i2pd on a "malformed, creating new" path that emits one `Identity` parse error per netDb entry before it recovers.
 - **Included:** `bitcoin.conf`, `store.json`, wallet files, `peers.dat`, and i2pd's own `i2pd.conf` and router keys.
+
+The package removes `chainstate.old/` during data migration and before startup. It remains unexcluded so incremental backups delete existing target copies.
 
 **A restore does not restore a synced node.** It restores the configuration, the wallets, and the package's own state; the node then performs a full Initial Block Download, rebuilding whichever indexes are enabled as it goes, and the I2P router reseeds from nothing. Download UTXO Snapshot is the supported way to shorten that wait. Until the sync finishes, a restored wallet's balance is only as complete as the chain the node has actually verified.
 

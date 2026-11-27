@@ -4,6 +4,7 @@ import { clearOnionTarget } from 'tor-startos/startos/utils/target'
 import { bitcoinConfFile } from '../fileModels/bitcoin.conf'
 import { onionBinding } from '../init/onionTarget'
 import { sdk } from '../sdk'
+import { cleanChainstateOld } from '../utils'
 import { raiseDatacarriercost32 } from './v32.1_0'
 
 /** Knots 29.3's built-in software expiry, which the pre-RDTS Other Settings form wrote on every save. */
@@ -68,18 +69,22 @@ const toCore = async ({ effects }: { effects: T.Effects }) => {
   await clearOnionTarget(sdk, effects, onionBinding)
 }
 
+async function prepareFlavorSwitch(effects: T.Effects) {
+  await dropInheritedSoftwareExpiry(effects)
+  await raiseDatacarriercost32(effects)
+  await cleanChainstateOld(effects)
+}
+
 const fromCore = {
   up: async ({ effects }: { effects: T.Effects }) => {
     await bitcoinConfFile.merge(effects, mempoolReset)
-    await dropInheritedSoftwareExpiry(effects)
-    await raiseDatacarriercost32(effects)
+    await prepareFlavorSwitch(effects)
   },
 }
 
 const fromKnots = {
   up: async ({ effects }: { effects: T.Effects }) => {
-    await dropInheritedSoftwareExpiry(effects)
-    await raiseDatacarriercost32(effects)
+    await prepareFlavorSwitch(effects)
   },
 }
 
@@ -143,7 +148,9 @@ export const current = VersionInfo.of({
 [Notes de version complètes](https://github.com/paulscode/knots-sha256/releases/tag/v32.1.knots-sha256.20261113)`,
   },
   migrations: {
-    up: async () => {},
+    up: async ({ effects }) => {
+      await cleanChainstateOld(effects)
+    },
     down: IMPOSSIBLE,
     // Arrival from another flavor. Leaving goes back to Bitcoin Core 32 only: older lines cannot take 32.x data.
     other: {

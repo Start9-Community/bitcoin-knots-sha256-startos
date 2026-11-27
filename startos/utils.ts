@@ -78,12 +78,30 @@ export const i2pSocksPort = 4447
 
 export const i2PSamAddress = `127.0.0.1:${i2pSamPort}`
 
+export const cleanChainstateOldCommand = [
+  'sh',
+  '-c',
+  `rm -rf ${rootDir}/chainstate.old ${rootDir}/*/chainstate.old`,
+]
+
 export const bitcoinMounts = sdk.Mounts.of().mountVolume({
   volumeId: 'main',
   subpath: null,
   mountpoint: rootDir,
   readonly: false,
 })
+
+export async function cleanChainstateOld(effects: T.Effects) {
+  await sdk.SubContainer.withTemp(
+    effects,
+    { imageId: 'bitcoind' },
+    bitcoinMounts,
+    'clean-chainstate-old',
+    async (subc) => {
+      await subc.execFail(cleanChainstateOldCommand)
+    },
+  )
+}
 
 export async function deleteIndex(
   effects: T.Effects,
