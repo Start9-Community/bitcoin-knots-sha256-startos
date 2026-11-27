@@ -5,14 +5,21 @@
 - [Start9 Bitcoin guides](https://docs.start9.com/bitcoin-guides/) — operating-a-Bitcoin-node guides curated for StartOS users (connecting wallets, dependent services, common workflows).
 - [Bitcoin Knots SHA256](https://github.com/paulscode/knots-sha256) — the node this package installs: Bitcoin Knots' policy patch series maintained on top of Bitcoin Core for the SHA256 chain, consensus-identical to Bitcoin Core. Releases and their signed `SHA256SUMS` are published there.
 - [About Bitcoin Knots](https://bitcoinknots.org/#about) — the original project's description of how Knots' policy controls differ from Bitcoin Core. From 29.4 Bitcoin Knots enforces BIP-110 (RDTS) and follows a different chain; this package does not.
+- [Configuration file](https://github.com/paulscode/knots-sha256/blob/v32.1.knots-sha256.20261113/doc/bitcoin-conf.md) — how `bitcoin.conf` is read and what its options mean.
+- [Tor](https://github.com/paulscode/knots-sha256/blob/v32.1.knots-sha256.20261113/doc/tor.md) — how the node reaches and accepts peers over Tor.
+- [I2P](https://github.com/paulscode/knots-sha256/blob/v32.1.knots-sha256.20261113/doc/i2p.md) — how the node reaches and accepts peers over I2P.
+- [ZeroMQ](https://github.com/paulscode/knots-sha256/blob/v32.1.knots-sha256.20261113/doc/zmq.md) — the block and transaction notifications other services subscribe to.
+- [Reducing traffic](https://github.com/paulscode/knots-sha256/blob/v32.1.knots-sha256.20261113/doc/reduce-traffic.md) — the upload limit, blocks-only mode and other ways to cut bandwidth.
+- [Managing wallets](https://github.com/paulscode/knots-sha256/blob/v32.1.knots-sha256.20261113/doc/managing-wallets.md) — creating, backing up and restoring the node's wallets.
+- [assumeutxo](https://github.com/paulscode/knots-sha256/blob/v32.1.knots-sha256.20261113/doc/assumeutxo.md) — how a node syncs from a UTXO snapshot and validates the older blocks in the background.
 
 ## What you get on StartOS
 
-- A full Bitcoin Knots SHA256 node — Bitcoin Core 32.x consensus with Knots' policy controls and defaults — with three interfaces: **RPC Interface** (JSON-RPC for wallets and dependent services), **Peer Interface** (the network port other nodes connect to), and **ZeroMQ Interface** (block/transaction notifications, when ZMQ is enabled).
+- A full Bitcoin Knots SHA256 node — Bitcoin Core 32.x consensus with Knots' policy controls and defaults — with two interfaces: **RPC Interface** (JSON-RPC for wallets and dependent services) and **Peer Interface** (the network port other nodes connect to). ZeroMQ block and transaction notifications reach other services on your server that subscribe to them; ZeroMQ is not exposed to your local network.
 - An embedded **i2pd** sidecar that brings up I2P transport automatically — your node accepts inbound peers over I2P out of the box, with a separate **I2P Daemon Console** interface available when you turn the i2pd web console on.
-- An automatic Tor outbound proxy (your node reaches `.onion` peers without configuration); add a `.onion` to the Peer Interface to advertise yourself and accept inbound Tor connections too.
-- Disk-aware defaults: on disks smaller than 900 GB the package enables pruning and disables `txindex`; on larger disks you get a full archival node. The transition is transparent — port 8332 is always served by a small `btc-rpc-proxy` sidecar, which answers JSON-RPC and, on a pruned node, fetches any block the node has pruned from the peer-to-peer network on demand, so wallets and services see a node that behaves as though nothing were pruned.
-- Shared `bitcoind` package id with Bitcoin Core — you can switch here from Bitcoin Core, Bitcoin Knots (pre-RDTS), or Bitcoin Knots (Legacy) as carried over from StartOS 0.3.5.1, without re-syncing the chain. Bitcoin Knots (RDTS) follows a different chain, so switching to or from it is not offered.
+- An automatic Tor outbound proxy (your node reaches `.onion` peers without configuration); add a `.onion` to the Peer Interface to advertise yourself and accept inbound Tor connections too. Peers that reach you over your `.onion` learn only that address, never your public IP.
+- Disk-aware defaults: on disks smaller than roughly 900 GB the package enables pruning and disables `txindex`, and **Other Settings** requires a pruning target of at least 550 MiB, so it can't be turned off there; on larger disks you get a full archival node. Port 8332 is always served by a small `btc-rpc-proxy` sidecar, which answers JSON-RPC and, on a pruned node, fetches any block the node has pruned from the peer-to-peer network on demand, so anything that reads blocks over the RPC — a Lightning node, a wallet, BTCPay Server — works as if nothing were pruned. Electrum servers and block explorers read the chain other ways and still need an archival node; each asks you to turn pruning off when you install it, which the settings won't allow on a disk under roughly 900 GB.
+- Shared `bitcoind` package id with Bitcoin Core — you can switch here from Bitcoin Core, Bitcoin Knots (pre-RDTS), or Bitcoin Knots (Legacy) as carried over from StartOS 0.3.5.1, without re-syncing the chain. Switching away keeps the chain only to Bitcoin Core 32.x: Bitcoin Core 31 or older and Bitcoin Knots (pre-RDTS) run an older version that can't use this node's data, so that switch is refused. Bitcoin Knots (RDTS) follows a different chain, so switching to or from it is not offered.
 
 ## Getting set up
 
@@ -35,7 +42,7 @@ The JSON-RPC API listens on port 8332. The **RPC Interface** is where wallets, i
 Four configuration actions cover the full set of editable `bitcoin.conf` values, grouped to be navigable:
 
 - **Mempool Settings** — Knots' policy controls (OP_RETURN limits, parasite/token filters, replacement rules, ancestor/descendant limits, dust relay fee, etc.) plus standard mempool sizing.
-- **Peer Settings** — `onlynet`, BIP324 v2 transport, I2P SAM proxy on/off, manual peers, max connections.
+- **Peer Settings** — `onlynet`, BIP324 v2 transport, private broadcast, I2P SAM proxy on/off, manual peers, max connections.
 - **RPC Settings** — RPC threads, work queue, server timeout.
 - **Other Settings** — ZMQ, txindex, block templates, the block weight reserved for a mining service's coinbase, coinstats index, block filters (BIP158/157), pruning, dbcache, wallet master switches, NAT-PMP, max upload target, and more.
 
@@ -55,7 +62,7 @@ The update reattaches existing peer addresses to the current peer interface thro
 When wallets are not disabled, the node ships with a basic wallet toolkit you can drive from actions:
 
 - **Select Wallet** — choose which wallet the other Wallet actions operate on. It defaults to `coin`, and the dropdown also lists wallets created by dependent services such as BTCPay Server/NBXplorer (including bitcoind's unnamed default wallet).
-- **Get Address**, **Get Balance**, **Send Coins**, **Send All Coins**, **Sign Message**.
+- **Get Address**, **Get Balance**, **Send Coins**, **Send All Coins**, **Sign Message**. A sent transaction can't be reversed, so check the address and amount before you submit.
 - **Backup wallet** / **Restore wallet** / **Remove wallet**. Backup wallet replaces the selected wallet's previous backup, and Restore wallet only works once that wallet has been removed; both ask for confirmation.
 
 Every action above acts on the currently selected wallet, so if you run more than one wallet (for example alongside BTCPay Server) use **Select Wallet** to point them at the right one first — otherwise they operate on `coin`. For day-to-day use prefer a dedicated wallet pointed at the RPC interface; the action surface here is mainly for one-off recovery and maintenance.

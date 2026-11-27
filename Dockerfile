@@ -6,7 +6,10 @@ ARG TARGETPLATFORM
 
 WORKDIR /build
 
-RUN apt-get update && apt-get install -y wget pgp ca-certificates
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates wget gnupg && \
+    rm -rf /var/lib/apt/lists/*
 
 # Pinned Bitcoin Knots SHA256 release signer: the maintainer's key, which
 # signs SHA256SUMS on an air-gapped machine (framework docs/SIGNING.md). One
@@ -33,7 +36,7 @@ RUN case "${TARGETPLATFORM}" in \
 # Release assets live on the GitHub Release of the product repo, flat under the
 # tag (no <major>.x/<version>/ path as on bitcoinknots.org). Names follow the
 # Core/Knots convention, so nothing else here had to change.
-RUN wget https://github.com/paulscode/knots-sha256/releases/download/v${VERSION}/$(cat /tarball-name) \
+RUN wget -q https://github.com/paulscode/knots-sha256/releases/download/v${VERSION}/$(cat /tarball-name) \
          https://github.com/paulscode/knots-sha256/releases/download/v${VERSION}/SHA256SUMS.asc \
          https://github.com/paulscode/knots-sha256/releases/download/v${VERSION}/SHA256SUMS
 
@@ -90,10 +93,9 @@ RUN set -e; \
     if [ "${bad}" -ne 0 ]; then echo "BAD SIGNATURE FROM PINNED KEY"; exit 1; fi; \
     if [ "${signers}" -lt "${REQUIRED_QUORUM}" ]; then echo "INSUFFICIENT QUORUM"; exit 1; fi
 
-RUN cp SHA256SUMS /sha256sums
-RUN grep $(cat /tarball-name) /sha256sums | sha256sum -c
+RUN grep " $(cat /tarball-name)$" SHA256SUMS | sha256sum -c
 
-RUN tar -zxvf $(cat /tarball-name) --strip-components=1
+RUN tar -xzf "$(cat /tarball-name)" --strip-components=1
 
 # Final image
 FROM debian:stable-slim
@@ -104,12 +106,13 @@ ENV PATH=${BITCOIN_PREFIX}/bin:$PATH
 
 # curl is load-bearing: the assumeutxo action shells out to it in this image
 # to download the UTXO snapshot.
-RUN apt-get update && apt-get install -y ca-certificates curl e2fsprogs jq yq
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl e2fsprogs jq socat yq && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /build/bin/bitcoind ${BITCOIN_PREFIX}/bin/
 COPY --from=builder /build/bin/bitcoin-cli ${BITCOIN_PREFIX}/bin/
 COPY --from=builder /build/libexec/bitcoin-node ${BITCOIN_PREFIX}/libexec/
-
-ARG ARCH
 
 EXPOSE 8332 8333

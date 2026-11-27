@@ -38,8 +38,6 @@ export const rpcLocalHostId = 'rpc-local'
 // Interface ids (the exported service interfaces on the hosts above).
 export const rpcInterfaceId = 'rpc'
 export const peerInterfaceId = 'peer'
-export const zmqBlockInterfaceId = 'zmq-block'
-export const zmqTxInterfaceId = 'zmq-tx'
 
 export const zmqPortBlock = 28332
 export const zmqPortTransaction = 28333
@@ -50,6 +48,10 @@ export const peerPortExternal = 8333
 export const peerPortInternal = 58333
 /** Container port bitcoind whitelists (`whitebind`); the `peer-local` binding maps here. */
 export const peerPortLocal = 58334
+/** Container port Tor forwards onion peers to; relayed to `peerPortOnionLoopback`. */
+export const peerPortOnion = 58335
+/** Port bitcoind binds `=onion` on loopback, where Core expects its Tor peers to arrive from. */
+export const peerPortOnionLoopback = 58336
 
 /** Container port the proxy serves JSON-RPC on; the `rpc` binding maps here. */
 export const rpcPort = 8332
@@ -83,12 +85,6 @@ export const bitcoinMounts = sdk.Mounts.of().mountVolume({
   readonly: false,
 })
 
-/**
- * Removes one of bitcoind's secondary index directories under indexes/.
- * Series 31 keeps the coinstats one at `coinstatsindex`
- * (src/index/coinstatsindex.cpp); `coinstats` is the Knots 29 spelling.
- * `force` so an index that was never built is not an error.
- */
 export async function deleteIndex(
   effects: T.Effects,
   index: 'blockfilter' | 'coinstatsindex' | 'txindex',
@@ -154,9 +150,6 @@ export type GetBlockchainInfo = {
   warnings: string
 }
 
-/** RPC connection args shared by bitcoin-cli and shell-script wrappers.
- *  Pass `wallet` to scope a wallet RPC to a specific wallet — required once
- *  more than one wallet is loaded, or bitcoind fails with error -19. */
 export type ChainTip = {
   height: number
   hash: string
@@ -179,10 +172,13 @@ export type GetChainstates = {
   }[]
 }
 
+/** RPC connection args shared by bitcoin-cli and shell-script wrappers.
+ *  Pass `wallet` to scope a wallet RPC to a specific wallet — required once
+ *  more than one wallet is loaded, or bitcoind fails with error -19. */
 export function rpcArgs(opts: { wallet?: string } = {}): string[] {
   return [
     `-conf=${rootDir}/bitcoin.conf`,
-    `-rpccookiefile=${rootDir}/.cookie`,
+    `-rpccookiefile=${rootDir}/${rpccookiefile}`,
     `-rpcport=${rpcPortLocal}`,
     ...(opts.wallet !== undefined ? [`-rpcwallet=${opts.wallet}`] : []),
   ]
@@ -195,6 +191,31 @@ export function bitcoinCliArgs(opts: { wallet?: string } = {}): string[] {
 
 /** Historical hardcoded wallet name used by the Wallet-group Actions. */
 export const defaultWalletName = 'coin'
+
+function walletSendFeeError(): string {
+  return i18n(
+    'Must be greater than 0 and at most 1000 sat/vB, with up to 3 decimal places.',
+  )
+}
+
+export const walletSendFee = sdk.Value.dynamicText(async () => ({
+  name: i18n('Fee'),
+  description: i18n(
+    'Fee rate in sat/vB: greater than 0 and at most 1000, with up to 3 decimal places.',
+  ),
+  required: true,
+  default: null,
+  patterns: [
+    {
+      regex: '^(?=.*[1-9])([0-9]{1,3}(\\.[0-9]{1,3})?|1000(\\.0{1,3})?)$',
+      description: walletSendFeeError(),
+    },
+  ],
+}))
+
+export function assertNonemptyWalletSendFee(fee: string): void {
+  if (fee === '') throw new Error(walletSendFeeError())
+}
 
 /** Display label for a wallet name — bitcoind's default wallet is '' (empty). */
 export function walletLabel(name: string): string {

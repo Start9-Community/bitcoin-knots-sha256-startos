@@ -33,12 +33,8 @@ const dict = {
   'Listens for JSON-RPC commands': 101,
   Peer: 102,
   'Listens for incoming connections from peers on the bitcoin network': 103,
-  'ZeroMQ Block': 104,
   'I2P Daemon Console': 105,
   'Interface to access the embedded I2P daemon console': 106,
-  'Streams real-time Bitcoin block notifications (hashes and raw data)': 107,
-  'ZeroMQ Transaction': 108,
-  'Streams real-time Bitcoin transaction notifications (hashes, raw data, and sequence)': 109,
 
   // actions/generateRpcUser.ts
   Username: 200,
@@ -370,9 +366,9 @@ const dict = {
   'The Bitcoin address you want to send the funds.': 1923,
   'Must be alphanumeric.': 1924,
   Amount: 1925,
-  'Amount of the transaction. (in BTC)': 1926,
+  'Amount to send, in BTC, with up to 8 decimal places.': 1926,
   Fee: 1927,
-  'Fees in sat/vbytes you want to pay for the transaction.': 1928,
+  'Fee rate in sat/vB: greater than 0 and at most 1000, with up to 3 decimal places.': 1928,
 
   // actions/wallet - sendallcoin.ts
   'Send All Coins': 1930,
@@ -400,7 +396,7 @@ const dict = {
 
   // actions/backupwallet.ts
   'Backup wallet': 2500,
-  'Backup wallet in a file for startOS system backup': 2501,
+  'Writes a copy of wallet ${wallet} to the file ${file} at the top of the main data volume, which StartOS backups include. Restore wallet reads it back from there.': 2501,
   'Your wallet has backup in coin.dat': 2502,
   'Wallet ${wallet} has been backed up to ${file}': 2503,
 
@@ -473,6 +469,19 @@ const dict = {
   'Bitcoin did not answer this check within a minute': 3127,
   'The I2P router did not answer within a minute': 3128,
   'Not available on a pruned node with the block filter or coin stats index on: the node would stop when background validation finishes (Bitcoin Core 32.1 bug #36939). Turn the index off first, or sync without a snapshot.': 3129,
+
+  // actions/sendcoin.ts, actions/sendallcoin.ts, utils.ts (wallet sends)
+  'Sends funds from wallet ${wallet} on this node. A sent transaction cannot be reversed: check the address and amount before you submit.': 3200,
+  'Sends the entire balance of wallet ${wallet} on this node. A sent transaction cannot be reversed: check the address before you submit.': 3201,
+  'Must be an amount greater than 0, with up to 8 decimal places.': 3202,
+  'Must be greater than 0 and at most 1000 sat/vB, with up to 3 decimal places.': 3203,
+
+  // fileModels/bitcoin.conf.ts, actions/config/peers.ts (private broadcast)
+  'Private Broadcast': 3204,
+  'Broadcast transactions submitted via the sendrawtransaction RPC over a separate short-lived Tor or I2P connection each, hiding the originator IP from peers and unlinking multiple transactions from the same sender. Such transactions bypass your own mempool, so they do not appear in getrawmempool. Only affects sendrawtransaction; wallet sends are unaffected.': 3205,
+  'Requires Tor or I2P to actually be reachable: I2P is enabled by default, while Tor requires the Tor service to be installed and running. While neither is reachable, transactions submitted this way are retried but never reach the network.': 3206,
+  'Bitcoin refuses to start with both Private Broadcast and Connect Peer set to Connect. Private broadcast opens its own connections to randomly chosen Tor or I2P peers, which Connect forbids. Choose Add Node instead, or turn off Private Broadcast.': 3207,
+  'Bitcoin refuses to start with Private Broadcast enabled while Onlynet excludes both Tor and I2P. Add onion to Onlynet, add i2p with the I2P SAM Proxy enabled, or turn off Private Broadcast.': 3208,
 } as const
 
 /**
