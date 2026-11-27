@@ -17,6 +17,8 @@ import {
   GetBlockchainInfo,
   GetNetworkInfo,
   i2pControlPort,
+  peerPortOnion,
+  peerPortOnionLoopback,
   rootDir,
   rpccookiefile,
   rpcCookieName,
@@ -266,20 +268,29 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   // ---- Build daemon chain step by step ----
 
-  const base = sdk.Daemons.of(effects).addOneshot('nocow', {
-    subcontainer: bitcoindSub,
-    exec: {
-      // Skip non-regular files: chattr fails on the IPC socket a previous run (or
-      // a switched-from Core node with IPC on) leaves behind, and a failing
-      // oneshot would restart-loop the service (bitcoin-core-startos 1c06091).
-      command: [
-        'sh',
-        '-c',
-        `rm -f ${rootDir}/ipc/bitcoin-core.sock; find ${rootDir} \\( -type d -o -type f \\) -exec chattr +C {} +`,
-      ],
-    },
-    requires: [],
-  })
+  const base = sdk.Daemons.of(effects)
+    .addOneshot('nocow', {
+      subcontainer: bitcoindSub,
+      exec: {
+        command: [
+          'sh',
+          '-c',
+          `rm -f ${rootDir}/ipc/bitcoin-core.sock; find ${rootDir} \\( -type d -o -type f \\) -exec chattr +C {} +`,
+        ],
+      },
+      requires: [],
+    })
+    .addOneshot('clean-chainstate-old', {
+      subcontainer: bitcoindSub,
+      exec: {
+        command: [
+          'sh',
+          '-c',
+          `rm -rf ${rootDir}/chainstate.old ${rootDir}/*/chainstate.old`,
+        ],
+      },
+      requires: [],
+    })
 
   const withBitcoind = await base
     .addDaemon('bitcoind', {
@@ -317,7 +328,27 @@ export const main = sdk.setupMain(async ({ effects }) => {
           }),
         ),
       },
-      requires: ['nocow'],
+      requires: ['nocow', 'clean-chainstate-old'],
+    })
+    // Onion peers reach bitcoind from 127.0.0.1, the one source Core never discourages as a whole.
+    .addDaemon('onion-relay', {
+      subcontainer: bitcoindSub,
+      exec: {
+        command: [
+          'socat',
+          `TCP-LISTEN:${peerPortOnion},fork,reuseaddr`,
+          `TCP:127.0.0.1:${peerPortOnionLoopback}`,
+        ],
+      },
+      ready: {
+        display: null,
+        fn: () =>
+          sdk.healthCheck.checkPortListening(effects, peerPortOnion, {
+            successMessage: 'Onion relay is listening',
+            errorMessage: 'Onion relay is not listening',
+          }),
+      },
+      requires: [],
     })
     .addHealthCheck('sync-progress', {
       ready: {

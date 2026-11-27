@@ -7,6 +7,7 @@ import {
   i2PSamAddress,
   peerPortInternal,
   peerPortLocal,
+  peerPortOnionLoopback,
   rpcallowip,
   rpcbind,
   rpccookiefile,
@@ -67,8 +68,13 @@ export const shape = z.looseObject({
     .tuple([
       z.literal(`0.0.0.0:${peerPortInternal}`),
       z.literal(`[::]:${peerPortInternal}`),
+      z.literal(`127.0.0.1:${peerPortOnionLoopback}=onion`),
     ])
-    .catch([`0.0.0.0:${peerPortInternal}`, `[::]:${peerPortInternal}`]),
+    .catch([
+      `0.0.0.0:${peerPortInternal}`,
+      `[::]:${peerPortInternal}`,
+      `127.0.0.1:${peerPortOnionLoopback}=onion`,
+    ]),
   whitebind: z
     .literal(`0.0.0.0:${peerPortLocal}`)
     .catch(`0.0.0.0:${peerPortLocal}`),
@@ -128,6 +134,7 @@ export const shape = z.looseObject({
   externalip: iniStringArray,
   whitelist: iniStringArray,
   v2transport: iniBoolean,
+  privatebroadcast: iniBoolean,
   connect: iniStringArray,
   addnode: iniStringArray,
   maxconnections: z
@@ -685,7 +692,8 @@ export const fullConfigSpec = sdk.InputSpec.of({
         'If your node is already pruned increasing this value will require re-syncing your node. Switching from a full archival node to pruned will disable txindex (if enabled)',
       ),
       placeholder: null,
-      required: false,
+      // Configuration actions must not disable pruning on small disks.
+      required: smallDisk,
       default: smallDisk ? minPrune : 0,
       integer: true,
       units: 'MiB',
@@ -797,6 +805,17 @@ export const fullConfigSpec = sdk.InputSpec.of({
     ),
     default: null,
     footnote: `${i18n('Default')}: true`,
+  }),
+  privatebroadcast: Value.triState({
+    name: i18n('Private Broadcast'),
+    description: i18n(
+      'Broadcast transactions submitted via the sendrawtransaction RPC over a separate short-lived Tor or I2P connection each, hiding the originator IP from peers and unlinking multiple transactions from the same sender. Such transactions bypass your own mempool, so they do not appear in getrawmempool. Only affects sendrawtransaction; wallet sends are unaffected.',
+    ),
+    default: null,
+    footnote: `${i18n('Default')}: false`,
+    warning: i18n(
+      'Requires Tor or I2P to actually be reachable: I2P is enabled by default, while Tor requires the Tor service to be installed and running. While neither is reachable, transactions submitted this way are retried but never reach the network.',
+    ),
   }),
   connectpeer: Value.union({
     name: i18n('Connect Peer'),
@@ -990,6 +1009,7 @@ function fileToForm(
     // Peers
     onlynet,
     v2transport,
+    privatebroadcast,
     connect,
     addnode,
     maxconnections,
@@ -1080,6 +1100,7 @@ function fileToForm(
           )
       : undefined,
     v2transport,
+    privatebroadcast,
     connectpeer: {
       selection:
         connect !== undefined ? ('connect' as const) : ('addnode' as const),
@@ -1155,6 +1176,7 @@ function formToFile(
     maxuploadtarget,
     // Peers
     v2transport,
+    privatebroadcast,
     onlynet,
     connectpeer,
     maxconnections,
@@ -1188,9 +1210,13 @@ function formToFile(
     ...raw,
 
     // Enforced fields
-    rpccookiefile: '.cookie',
+    rpccookiefile,
     listen: true,
-    bind: [`0.0.0.0:${peerPortInternal}`, `[::]:${peerPortInternal}`],
+    bind: [
+      `0.0.0.0:${peerPortInternal}`,
+      `[::]:${peerPortInternal}`,
+      `127.0.0.1:${peerPortOnionLoopback}=onion`,
+    ],
     whitebind: `0.0.0.0:${peerPortLocal}`,
     deprecatedrpc: 'create_bdb',
     rpcauth: raw?.rpcauth?.filter((a) => !!a) as string[] | undefined,
@@ -1280,6 +1306,7 @@ function formToFile(
 
     // Peers
     v2transport: v2transport ?? undefined,
+    privatebroadcast: privatebroadcast ?? undefined,
     onlynet: onlynetOut.length ? onlynetOut : undefined,
     i2psam: keepsI2p && !dropI2p ? i2PSamAddress : raw?.i2psam,
     maxconnections: maxconnections ?? undefined,

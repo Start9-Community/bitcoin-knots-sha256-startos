@@ -34,27 +34,25 @@ carries `bitcoin-<version_string>-<host>.tar.gz`, `SHA256SUMS`, `SHA256SUMS.asc`
      list; if Core has bumped its `:N` since the last wrapper release, raise
      them here or dependents that raised their floor stop accepting this
      flavor. Check against a real box: `tools/startos-deps.py --host
-     <user>@<integration-server>.local` in the framework repo reads every
+<user>@<integration-server>.local` in the framework repo reads every
      installed dependent's `bitcoind` range and must PASS (electrs 0.12.0
      there requires `>=31.1:17`).
-   - `migrations.other`: if the Core base changed major (31 → 32), review the
-     `down` cleanups against what the official Core package removes on its own
-     downgrade path, and add the new Core major key.
-   - Move the previous version file under `startos/versions/` and list it in
-     `versions/index.ts` `other` the first time a second version exists.
+   - `migrations.other`: if the Core base changes major (32 → 33), add the new
+     Core major key and move the one `down` edge to it: leaving goes back to
+     Bitcoin Core of the same major only.
+   - If the version in `current.ts` carries a migration of its own (its `up`
+     or `down` does work), spin it off first into `startos/versions/` and list
+     it in `versions/index.ts` `other`; otherwise bump `current.ts` in place.
+     The packaging guide's `versions.md` has the rule.
 3. Signing key: `assets/release-keys/<FPR>.asc` must be byte-identical to the
    framework's `config/keys/maintainer.asc`, and `PINNED_FINGERPRINTS` in the
    `Dockerfile` must list exactly that fingerprint. The framework's
    `tools/keys-check.sh` compares the committed key with its published copy; a
    key rotation is a framework decision first and a wrapper change second.
-4. Build, sign, publish, from the workspace directory above this repo:
-   ```
-   ./release.sh knots-sha256-startos            # builds the universal s9pk, writes builds/<ver>/SHA256SUMS
-   # sign SHA256SUMS on the air-gapped machine, drop SHA256SUMS.asc beside it
-   ./release.sh knots-sha256-startos --publish  # verifies, cuts the GitHub Release on this repo
-   ```
-   CI (`.github/workflows/check.yml`) type-checks and runs the unit tests only;
-   it never builds or publishes a package.
+4. Open a pull request against `main` on
+   <https://github.com/Start9-Community/bitcoin-knots-sha256-startos>. Merging it
+   is what releases: the fork's `tagAndRelease` workflow builds, signs and
+   publishes the s9pk to the community registry.
 
 ## Architectures
 
